@@ -1,0 +1,229 @@
+openapi: 3.1.0
+info:
+  description: |
+    This API allows writing down marks on a Tic Tac Toe board
+    and requesting the state of the board or of individual squares.
+  title: Tic Tac Toe
+  version: 1.0.0
+servers:
+- url: /
+tags:
+- name: Gameplay
+paths:
+  /board:
+    get:
+      description: Retrieves the current state of the board and the winner.
+      operationId: get-board
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+          description: OK
+      security:
+      - apiKey: []
+      - app2AppOauth:
+        - board:read
+      summary: Get the whole board
+      tags:
+      - Gameplay
+      x-accepts:
+      - application/json
+      x-tags:
+      - tag: Gameplay
+  /board/{row}/{column}:
+    get:
+      description: Retrieves the requested square.
+      operationId: get-square
+      parameters:
+      - $ref: '#/components/parameters/rowParam'
+      - $ref: '#/components/parameters/columnParam'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/mark'
+          description: OK
+        "400":
+          content:
+            text/html:
+              example: Illegal coordinates
+              schema:
+                $ref: '#/components/schemas/errorMessage'
+          description: The provided parameters are incorrect
+      security:
+      - bearerHttpAuthentication: []
+      - user2AppOauth:
+        - board:read
+      summary: Get a single board square
+      tags:
+      - Gameplay
+      x-accepts:
+      - application/json
+      - text/html
+      x-tags:
+      - tag: Gameplay
+    parameters:
+    - $ref: '#/components/parameters/rowParam'
+    - $ref: '#/components/parameters/columnParam'
+    put:
+      description: Places a mark on the board and retrieves the whole board and the
+        winner (if any).
+      operationId: put-square
+      parameters:
+      - $ref: '#/components/parameters/rowParam'
+      - $ref: '#/components/parameters/columnParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/mark'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+          description: OK
+        "400":
+          content:
+            text/html:
+              examples:
+                illegalCoordinates:
+                  value: Illegal coordinates.
+                notEmpty:
+                  value: Square is not empty.
+                invalidMark:
+                  value: Invalid Mark (X or O).
+              schema:
+                $ref: '#/components/schemas/errorMessage'
+          description: The provided parameters are incorrect
+      security:
+      - bearerHttpAuthentication: []
+      - user2AppOauth:
+        - board:write
+      summary: Set a single board square
+      tags:
+      - Gameplay
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+      - text/html
+      x-tags:
+      - tag: Gameplay
+components:
+  parameters:
+    rowParam:
+      description: Board row (vertical coordinate)
+      explode: false
+      in: path
+      name: row
+      required: true
+      schema:
+        $ref: '#/components/schemas/coordinate'
+      style: simple
+    columnParam:
+      description: Board column (horizontal coordinate)
+      explode: false
+      in: path
+      name: column
+      required: true
+      schema:
+        $ref: '#/components/schemas/coordinate'
+      style: simple
+  schemas:
+    errorMessage:
+      description: A text message describing an error
+      maxLength: 256
+      type: string
+    coordinate:
+      example: 1
+      maximum: 3
+      minimum: 1
+      type: integer
+    mark:
+      description: Possible values for a board square. `.` means empty square.
+      enum:
+      - "."
+      - X
+      - O
+      example: "."
+      type: string
+    board:
+      items:
+        items:
+          $ref: '#/components/schemas/mark'
+        maxItems: 3
+        minItems: 3
+        type: array
+      maxItems: 3
+      minItems: 3
+      type: array
+    winner:
+      description: Winner of the game. `.` means nobody has won yet.
+      enum:
+      - "."
+      - X
+      - O
+      example: "."
+      type: string
+    status:
+      example:
+        winner: "."
+        board:
+        - - "."
+          - "."
+          - "."
+        - - "."
+          - "."
+          - "."
+        - - "."
+          - "."
+          - "."
+      properties:
+        winner:
+          $ref: '#/components/schemas/winner'
+        board:
+          items:
+            items:
+              $ref: '#/components/schemas/mark'
+            maxItems: 3
+            minItems: 3
+            type: array
+          maxItems: 3
+          minItems: 3
+          type: array
+  securitySchemes:
+    defaultApiKey:
+      description: API key provided in console
+      in: header
+      name: api-key
+      type: apiKey
+    basicHttpAuthentication:
+      description: Basic HTTP Authentication
+      scheme: Basic
+      type: http
+    bearerHttpAuthentication:
+      bearerFormat: JWT
+      description: Bearer token using a JWT
+      scheme: Bearer
+      type: http
+    app2AppOauth:
+      flows:
+        clientCredentials:
+          scopes:
+            board:read: Read the board
+          tokenUrl: https://learn.openapis.org/oauth/2.0/token
+      type: oauth2
+    user2AppOauth:
+      flows:
+        authorizationCode:
+          authorizationUrl: https://learn.openapis.org/oauth/2.0/auth
+          scopes:
+            board:read: Read the board
+            board:write: Write to the board
+          tokenUrl: https://learn.openapis.org/oauth/2.0/token
+      type: oauth2
